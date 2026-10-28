@@ -1,47 +1,30 @@
-const ExcelJS = require("exceljs");
+const fs = require("fs");
+const path = require("path");
+const XlsxTemplate = require("node-xlsx-template");
 
-async function fillTableTemplate(outputPath) {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet();
+// 1. Путь к вашему файлу-шаблону
+const templatePath = path.join(__dirname, "templates", "template.xlsx");
 
-  // JSON с данными для таблицы
-  const items = [
-    { name: "Ноутбук", quantity: 2, price: 1200 },
-    { name: "Монитор", quantity: 3, price: 300 },
-    { name: "Клавиатура", quantity: 5, price: 50 },
-    { name: "Мышь", quantity: 10, price: 25 },
-  ];
+// 2. Чтение файла шаблона в буфер
+const templateData = fs.readFileSync(templatePath);
 
-  // Строка 2 — образец стиля. Начинаем вставку с позиции 2.
-  // Метод insertRow(position, values, inheritFrom) копирует стиль со сдвигаемой строки.
-  const startRow = 2;
+// 3. Создание экземпляра шаблона из буфера
+const template = new XlsxTemplate(templateData);
 
-  items.forEach((item, index) => {
-    const rowNumber = startRow + index;
+// 4. Определение данных для подстановки
+// Ключи в этом объекте должны точно совпадать с именами в плейсхолдерах ${...}
+const values = {
+  name: "Ромашка",
+};
 
-    // 'i+' — наследовать стиль от строки выше (включая пустые ячейки)
-    // При первой вставке стиль берётся со строки-образца, при последующих — с уже вставленной.
-    const row = sheet.insertRow(
-      rowNumber,
-      [
-        item.name,
-        item.quantity,
-        item.price,
-        item.quantity * item.price, // вычисляем сумму в JS
-      ],
-      "i+",
-    );
+// 5. Подстановка значений на первый лист (sheet 1)
+// Вместо номера можно использовать имя листа, например, 'Sheet1'
+template.substitute(1, values);
 
-    // Дополнительно можно задать формат ячеек
-    row.getCell(3).numFmt = "#,##0.00";
-    row.getCell(4).numFmt = "#,##0.00";
-  });
+// 6. Генерация итогового файла в виде бинарного буфера
+const outputBuffer = template.generate({ type: "nodebuffer" });
 
-  // Удаляем строку-образец, если она больше не нужна
-  sheet.spliceRows(startRow + items.length, 1);
-
-  await workbook.xlsx.writeFile(outputPath);
-  console.log("Таблица заполнена:", outputPath);
-}
-
-fillTableTemplate("./filled.xlsx");
+// 7. Сохранение результата в новый файл
+const reportPath = path.join(__dirname, "templates", "report.xlsx");
+fs.writeFileSync(reportPath, outputBuffer);
+console.log("Файл report.xlsx успешно создан!");
